@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Subscriptions Pro | Finance Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0f172a; color: #f1f5f9; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .card-accent { border-left: 4px solid var(--accent-color); }
+        input, select { background: #1e293b !important; border: 1px solid #334155 !important; color: white !important; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body x-data="app()" x-init="init()" :style="'--accent-color: ' + accentColor">
+
+    <div class="flex min-h-screen">
+        
+        <!-- SIDEBAR -->
+        <aside class="w-20 lg:w-72 border-r border-slate-800/50 flex flex-col bg-slate-900">
+            <div class="p-8">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-white shadow-lg shadow-indigo-500/20" :style="'background:' + accentColor">N</div>
+                    <span class="font-bold text-xl text-white hidden lg:block tracking-tight">Nexus<span :style="'color:' + accentColor">Pro</span></span>
+                </div>
+            </div>
+
+            <nav class="flex-1 px-4 space-y-2">
+                <template x-for="item in menu">
+                    <button @click="view = item.id" 
+                            :class="view === item.id ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'"
+                            class="w-full flex items-center gap-4 p-4 rounded-2xl transition-all group">
+                        <span x-text="item.icon" class="text-xl"></span>
+                        <span class="font-semibold hidden lg:block text-sm" x-text="item.label"></span>
+                    </button>
+                </template>
+            </nav>
+
+            <div class="p-6 mt-auto border-t border-slate-800/50 space-y-6">
+                <div class="hidden lg:block space-y-2">
+                    <p class="text-[10px] font-black uppercase text-slate-500 tracking-widest px-2">Vzhled</p>
+                    <div class="flex gap-2 px-2">
+                        <template x-for="color in ['#6366f1', '#10b981', '#f43f5e', '#f59e0b', '#06b6d4']">
+                            <button @click="accentColor = color" :style="'background:' + color" class="w-5 h-5 rounded-full border-2 border-slate-900 hover:scale-125 transition"></button>
+                        </template>
+                    </div>
+                </div>
+                <button @click="exportData()" class="w-full flex items-center gap-3 p-3 text-xs text-slate-400 hover:text-white transition">
+                    <span>📥</span> <span class="hidden lg:block">Exportovat JSON</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN -->
+        <main class="flex-1 overflow-y-auto p-6 lg:p-12">
+            
+            <!-- TOP BAR -->
+            <div class="flex justify-between items-center mb-12">
+                <div>
+                    <h2 class="text-4xl font-black mb-1" x-text="menu.find(m => m.id === view).label"></h2>
+                    <p class="text-slate-500 font-medium text-sm">Nexus Subscriptions &bull; Professional Suite</p>
+                </div>
+                
+                <div class="flex items-center gap-6">
+                    <!-- CURRENCY TOGGLE -->
+                    <div class="bg-slate-800 p-1 rounded-xl flex items-center border border-slate-700 shadow-inner">
+                        <button @click="currency = 'CZK'" :class="currency === 'CZK' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'" class="px-4 py-2 rounded-lg text-xs font-black transition-all">CZK</button>
+                        <button @click="currency = 'EUR'" :class="currency === 'EUR' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'" class="px-4 py-2 rounded-lg text-xs font-black transition-all">EUR</button>
+                    </div>
+
+                    <button @click="showAddModal = true" class="px-6 py-3 rounded-2xl text-white font-black shadow-xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2" :style="'background:' + accentColor">
+                        <span class="text-lg">+</span> <span class="hidden sm:block">NOVÁ SLUŽBA</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- VIEW: DASHBOARD -->
+            <div x-show="view === 'dashboard'" x-cloak class="space-y-10">
+                <!-- STATS GRID -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="glass p-8 rounded-[2rem] border-slate-800">
+                        <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest">Měsíční náklady</p>
+                        <h3 class="text-3xl font-black mt-2" x-text="formatMoney(monthlyTotal)"></h3>
+                        <div class="mt-4 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+                            <div class="h-full bg-indigo-500" :style="'width: 65%'"></div>
+                        </div>
+                    </div>
+                    <div class="glass p-8 rounded-[2rem] border-slate-800">
+                        <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest">Roční odhad</p>
+                        <h3 class="text-3xl font-black mt-2 text-slate-400" x-text="formatMoney(monthlyTotal * 12)"></h3>
+                    </div>
+                    <div class="glass p-8 rounded-[2rem] border-slate-800 relative">
+                        <p class="text-slate-500 text-[10px] font-black uppercase tracking-widest">Health Score</p>
+                        <h3 class="text-4xl font-black mt-2" :style="'color:' + accentColor" x-text="healthScore"></h3>
+                        <p class="text-[10px] font-bold text-slate-500 mt-1">Portfolio v optimu</p>
+                    </div>
+                    <div class="glass p-8 rounded-[2rem] border-slate-800 bg-gradient-to-br from-emerald-900/20 to-transparent">
+                        <p class="text-emerald-500 text-[10px] font-black uppercase tracking-widest">Zrušením ušetřeno</p>
+                        <h3 class="text-3xl font-black mt-2 text-emerald-400" x-text="formatMoney(totalSaved)"></h3>
+                        <p class="text-[10px] text-emerald-600 mt-1 font-bold">Měsíční pasivní úspora</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                    <!-- TIMELINE -->
+                    <div class="lg:col-span-2 glass rounded-[2.5rem] p-10 border-slate-800">
+                        <div class="flex justify-between items-center mb-10">
+                            <h4 class="font-black text-xl tracking-tight">Nadcházející platby</h4>
+                            <span class="text-[10px] font-black bg-slate-800 px-3 py-1 rounded-full text-slate-500 uppercase tracking-widest">Tento měsíc</span>
+                        </div>
+                        <div class="space-y-4">
+                            <template x-for="sub in timeline" :key="sub.id">
+                                <div class="group flex items-center gap-6 p-5 rounded-3xl border border-slate-800/50 hover:bg-slate-800/30 hover:border-slate-700 transition-all">
+                                    <div class="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center font-black text-slate-500 group-hover:text-white transition" :style="'border: 2px solid ' + accentColor" x-text="sub.name[0]"></div>
+                                    <div class="flex-1">
+                                        <p class="font-bold text-white text-lg" x-text="sub.name"></p>
+                                        <p class="text-xs text-slate-500 font-medium" x-text="formatDate(sub.nextPayment)"></p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="font-black text-white" x-text="formatMoney(sub.amount)"></p>
+                                        <p class="text-[10px] font-black uppercase tracking-widest" :class="daysUntil(sub.nextPayment) < 5 ? 'text-rose-500' : 'text-slate-500'" x-text="daysUntil(sub.nextPayment) + ' DNÍ'"></p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- INSIGHTS & ANALYTICS -->
+                    <div class="space-y-6">
+                        <div class="glass p-8 rounded-[2.5rem] border-slate-800">
+                            <h4 class="font-black text-xs uppercase tracking-widest text-slate-500 mb-6 italic">Smart Insights</h4>
+                            <div class="space-y-4">
+                                <template x-for="insight in insights" :key="insight.text">
+                                    <div class="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
+                                        <p class="text-xs leading-relaxed text-slate-400" x-html="insight.text"></p>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="glass p-8 rounded-[2.5rem] border-slate-800">
+                            <h4 class="font-black text-xs uppercase tracking-widest text-slate-500 mb-6 italic">Kategorie</h4>
+                            <div class="space-y-5">
+                                <template x-for="(share, cat) in categoryShares" :key="cat">
+                                    <div>
+                                        <div class="flex justify-between text-[10px] font-black uppercase mb-2 text-slate-400">
+                                            <span x-text="cat"></span>
+                                            <span x-text="share + '%'"></span>
+                                        </div>
+                                        <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                                            <div class="h-full rounded-full transition-all duration-1000" :style="'width: ' + share + '%; background:' + accentColor"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: LIST -->
+            <div x-show="view === 'list'" x-cloak class="glass rounded-[2.5rem] border-slate-800 overflow-hidden">
+                <div class="p-8 border-b border-slate-800 flex flex-wrap justify-between items-center gap-6">
+                    <div class="relative w-full md:w-80">
+                        <input type="text" x-model="search" placeholder="Vyhledat službu..." class="w-full pl-6 pr-4 py-4 rounded-2xl outline-none focus:ring-2 ring-indigo-500 shadow-inner">
+                    </div>
+                    <div class="flex gap-2">
+                        <template x-for="cat in ['Vše', ...categories]">
+                            <button @click="filterCat = cat" :class="filterCat === cat ? 'bg-white text-slate-900 shadow-lg' : 'hover:bg-slate-800'" class="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition" x-text="cat"></button>
+                        </template>
+                    </div>
+                </div>
+                <table class="w-full text-left">
+                    <thead class="bg-slate-900/50 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                        <tr>
+                            <th class="p-8">Služba</th>
+                            <th class="p-8">Částka</th>
+                            <th class="p-8">Příští platba</th>
+                            <th class="p-8 text-right">Akce</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/50">
+                        <template x-for="sub in filteredSubs" :key="sub.id">
+                            <tr class="group hover:bg-white/[0.01] transition-colors">
+                                <td class="p-8">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center font-bold text-slate-500 group-hover:text-white transition" x-text="sub.name[0]"></div>
+                                        <div>
+                                            <div class="font-bold text-white text-lg" x-text="sub.name"></div>
+                                            <div class="text-[10px] font-black uppercase text-slate-600 tracking-tighter" x-text="sub.category"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="p-8">
+                                    <div class="font-black text-white text-lg" x-text="formatMoney(sub.amount)"></div>
+                                    <div class="text-[10px] font-bold text-slate-600 uppercase" x-text="sub.frequency === 'monthly' ? 'měsíčně' : 'ročně'"></div>
+                                </td>
+                                <td class="p-8">
+                                    <div class="font-bold text-slate-300" x-text="formatDate(sub.nextPayment)"></div>
+                                    <div class="text-[10px] font-black uppercase tracking-tighter" :class="daysUntil(sub.nextPayment) < 7 ? 'text-rose-500' : 'text-slate-600'" x-text="'za ' + daysUntil(sub.nextPayment) + ' dní'"></div>
+                                </td>
+                                <td class="p-8 text-right space-x-2 opacity-0 group-hover:opacity-100 transition-all">
+                                    <button @click="openCancel(sub)" class="p-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-indigo-400">📄</button>
+                                    <button @click="killSub(sub.id)" class="p-3 bg-slate-800 hover:bg-rose-900/30 rounded-xl text-rose-500">⚰️</button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- VIEW: GRAVEYARD -->
+            <div x-show="view === 'graveyard'" x-cloak class="space-y-10">
+                <div class="glass p-16 rounded-[3rem] text-center border-slate-800 max-w-3xl mx-auto">
+                    <div class="text-6xl mb-6">⚰️</div>
+                    <h3 class="text-4xl font-black mb-4">Hřbitov úspor</h3>
+                    <p class="text-slate-500 mb-10 max-w-md mx-auto leading-relaxed">Každá služba zde znamená skutečné peníze, které už nemusíte vydělávat. Jste finančně svobodnější.</p>
+                    <div class="flex justify-center gap-12">
+                        <div>
+                            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Ušetřeno měsíčně</p>
+                            <p class="text-4xl font-black text-emerald-400" x-text="formatMoney(monthlySaved)"></p>
+                        </div>
+                        <div class="w-px h-16 bg-slate-800"></div>
+                        <div>
+                            <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Aktivní úspora</p>
+                            <p class="text-4xl font-black text-indigo-400" x-text="formatMoney(monthlySaved * 12) + ' / rok'"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <template x-for="old in graveyard" :key="old.id">
+                        <div class="glass p-8 rounded-[2rem] border-slate-800 group hover:border-emerald-500/30 transition-all">
+                            <div class="flex justify-between items-start mb-6">
+                                <h4 class="font-black text-xl text-slate-300" x-text="old.name"></h4>
+                                <span class="bg-emerald-500/10 text-emerald-500 text-[10px] font-black px-3 py-1 rounded-full">ZRUŠENO</span>
+                            </div>
+                            <p class="text-2xl font-black text-emerald-400 mb-6" x-text="'+ ' + formatMoney(old.amount)"></p>
+                            <button @click="reviveSub(old.id)" class="text-[10px] font-black uppercase text-indigo-500 hover:text-white transition">Oživit službu</button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- MODAL: ADD -->
+        <div x-show="showAddModal" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+            <div @click.away="showAddModal = false" class="bg-slate-900 w-full max-w-xl rounded-[3rem] p-12 border border-slate-800">
+                <h3 class="text-4xl font-black mb-10 tracking-tight">Nová služba</h3>
+                <div class="space-y-6">
+                    <input type="text" x-model="newSub.name" placeholder="Název služby" class="w-full p-5 rounded-2xl outline-none focus:ring-2 ring-indigo-500 text-lg">
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="number" x-model="newSub.amount" placeholder="Částka" class="w-full p-5 rounded-2xl outline-none focus:ring-2 ring-indigo-500 text-lg">
+                        <select x-model="newSub.frequency" class="w-full p-5 rounded-2xl outline-none focus:ring-2 ring-indigo-500 text-lg appearance-none">
+                            <option value="monthly">Měsíčně</option>
+                            <option value="yearly">Ročně</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-slate-600 ml-2 uppercase tracking-widest">Příští platba</label>
+                            <input type="date" x-model="newSub.nextPayment" class="w-full p-5 rounded-2xl outline-none focus:ring-2 ring-indigo-500">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-slate-600 ml-2 uppercase tracking-widest">Kategorie</label>
+                            <select x-model="newSub.category" class="w-full p-5 rounded-2xl outline-none focus:ring-2 ring-indigo-500 appearance-none">
+                                <template x-for="cat in categories" :key="cat">
+                                    <option :value="cat" x-text="cat"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 pt-6">
+                        <button @click="saveSub()" class="flex-1 py-5 rounded-2xl text-white font-black shadow-2xl transition-all hover:brightness-110 active:scale-95" :style="'background:' + accentColor">PŘIDAT DO PORTFOLIA</button>
+                        <button @click="showAddModal = false" class="px-8 py-5 font-bold text-slate-500 hover:text-white transition">Zrušit</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL: CANCEL -->
+        <div x-show="showCancelModal" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
+            <div @click.away="showCancelModal = false" class="bg-slate-900 w-full max-w-2xl rounded-[3rem] p-12 border border-slate-800">
+                <div class="flex justify-between items-start mb-8">
+                    <h3 class="text-3xl font-black text-white">Generátor ukončení</h3>
+                    <div class="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center text-2xl">📄</div>
+                </div>
+                <div class="bg-slate-800/50 p-8 rounded-3xl border border-slate-700/50 font-serif leading-relaxed text-slate-300 text-sm mb-10 select-all" id="cancelDoc">
+                    <p><strong>Předmět: Ukončení smlouvy k předplatnému služby <span x-text="subToCancel?.name"></span></strong></p><br>
+                    <p>Dobrý den,</p>
+                    <p>tímto vypovídám svou smlouvu o poskytování služby <strong x-text="subToCancel?.name"></strong> k nejbližšímu možnému termínu ukončení. Poslední řádná platba proběhne dne <strong x-text="subToCancel ? formatDate(subToCancel.nextPayment) : ''"></strong>.</p>
+                    <p>Zároveň odvolávám souhlas se zasíláním marketingových sdělení a inkasování dalších plateb po ukončení období. Žádám o potvrzení přijetí této výpovědi.</p><br>
+                    <p>S pozdravem,</p>
+                    <p class="italic text-slate-500 font-sans">[Vložit vaše jméno]</p>
+                </div>
+                <div class="flex gap-4">
+                    <button @click="copyCancel()" class="flex-1 bg-white text-slate-950 py-5 rounded-2xl font-black hover:bg-slate-200 transition">KOPÍROVAT TEXT</button>
+                    <button @click="showCancelModal = false" class="px-8 py-5 font-bold text-slate-500 hover:text-white transition">Zavřít</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function app() {
+            return {
+                view: 'dashboard',
+                accentColor: '#6366f1',
+                currency: 'CZK',
+                search: '',
+                filterCat: 'Vše',
+                showAddModal: false,
+                showCancelModal: false,
+                subToCancel: null,
+                subscriptions: [],
+                graveyard: [],
+                categories: ['Zábava', 'Práce', 'Domácnost', 'Sport', 'Software', 'Ostatní'],
+                newSub: { name: '', amount: 0, frequency: 'monthly', nextPayment: '', category: 'Zábava' },
+                menu: [
+                    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                    { id: 'list', label: 'Moje služby', icon: '💳' },
+                    { id: 'graveyard', label: 'Hřbitov úspor', icon: '⚰️' }
+                ],
+
+                init() {
+                    const savedSubs = localStorage.getItem('nexus_pro_subs');
+                    const savedGrave = localStorage.getItem('nexus_pro_grave');
+                    if(savedSubs) this.subscriptions = JSON.parse(savedSubs);
+                    if(savedGrave) this.graveyard = JSON.parse(savedGrave);
+
+                    if(this.subscriptions.length === 0) {
+                        this.subscriptions = [
+                            { id: 1, name: 'Netflix', amount: 379, frequency: 'monthly', nextPayment: this.offsetDate(4), category: 'Zábava' },
+                            { id: 2, name: 'Adobe Bundle', amount: 1650, frequency: 'monthly', nextPayment: this.offsetDate(1), category: 'Software' },
+                            { id: 3, name: 'Gym Elite', amount: 12000, frequency: 'yearly', nextPayment: this.offsetDate(25), category: 'Sport' }
+                        ];
+                        this.save();
+                    }
+                },
+
+                save() {
+                    localStorage.setItem('nexus_pro_subs', JSON.stringify(this.subscriptions));
+                    localStorage.setItem('nexus_pro_grave', JSON.stringify(this.graveyard));
+                },
+
+                offsetDate(days) {
+                    const d = new Date();
+                    d.setDate(d.getDate() + days);
+                    return d.toISOString().split('T')[0];
+                },
+
+                formatMoney(amountInCZK) {
+                    const rate = 25.12; // Static exchange rate EUR/CZK
+                    if (this.currency === 'EUR') {
+                        const val = amountInCZK / rate;
+                        return val.toLocaleString('cs-CZ', { style: 'currency', currency: 'EUR' });
+                    }
+                    return amountInCZK.toLocaleString('cs-CZ', { style: 'currency', currency: 'CZK', minimumFractionDigits: 0 });
+                },
+
+                formatDate(d) { return new Date(d).toLocaleDateString('cs-CZ'); },
+                daysUntil(d) { return Math.ceil((new Date(d) - new Date()) / 86400000); },
+
+                get filteredSubs() {
+                    return this.subscriptions.filter(s => {
+                        const mSearch = s.name.toLowerCase().includes(this.search.toLowerCase());
+                        const mCat = this.filterCat === 'Vše' || s.category === this.filterCat;
+                        return mSearch && mCat;
+                    });
+                },
+
+                get timeline() {
+                    return [...this.subscriptions]
+                        .sort((a,b) => new Date(a.nextPayment) - new Date(b.nextPayment))
+                        .filter(s => {
+                            const d = new Date(s.nextPayment);
+                            return d.getMonth() === new Date().getMonth();
+                        });
+                },
+
+                get monthlyTotal() {
+                    return this.subscriptions.reduce((acc, s) => {
+                        const amt = parseFloat(s.amount);
+                        return acc + (s.frequency === 'monthly' ? amt : amt / 12);
+                    }, 0);
+                },
+
+                get monthlySaved() {
+                    return this.graveyard.reduce((acc, s) => {
+                        const amt = parseFloat(s.amount);
+                        return acc + (s.frequency === 'monthly' ? amt : amt / 12);
+                    }, 0);
+                },
+
+                get totalSaved() {
+                    return this.monthlySaved;
+                },
+
+                get categoryShares() {
+                    const t = {}; let total = 0;
+                    this.subscriptions.forEach(s => {
+                        const amt = s.frequency === 'monthly' ? s.amount : s.amount / 12;
+                        t[s.category] = (t[s.category] || 0) + amt;
+                        total += amt;
+                    });
+                    const res = {};
+                    for(let c in t) res[c] = Math.round((t[c] / total) * 100);
+                    return res;
+                },
+
+                get healthScore() {
+                    let score = 100;
+                    if(this.subscriptions.length > 8) score -= 15;
+                    if(this.monthlyTotal > 6000) score -= 20;
+                    return Math.max(10, score);
+                },
+
+                get insights() {
+                    const ins = [];
+                    const ent = this.subscriptions.filter(s => s.category === 'Zábava');
+                    if(ent.length > 2) ins.push({ text: `Detekována <strong>nadbytečná zábava</strong> (${ent.length} služby). Zvažte konsolidaci.` });
+                    if(this.monthlyTotal > 4000) ins.push({ text: `Váš burn-rate je <strong>nad průměrem</strong>. Hřbitov úspor čeká na nové přírůstky.` });
+                    return ins.length ? ins : [{ text: "Všechny finance jsou pod kontrolou." }];
+                },
+
+                saveSub() {
+                    if(!this.newSub.name || !this.newSub.amount) return alert('Vyplňte jméno a částku.');
+                    const sub = { ...this.newSub, id: Date.now(), amount: parseFloat(this.newSub.amount) };
+                    this.subscriptions.push(sub);
+                    this.save();
+                    this.showAddModal = false;
+                    this.newSub = { name: '', amount: 0, frequency: 'monthly', nextPayment: '', category: 'Zábava' };
+                },
+
+                killSub(id) {
+                    const sub = this.subscriptions.find(s => s.id === id);
+                    if(confirm(`Odeslat ${sub.name} na hřbitov? Ušetříte ${this.formatMoney(sub.amount)}.`)) {
+                        this.graveyard.push({ ...sub, cancelledAt: new Date() });
+                        this.subscriptions = this.subscriptions.filter(s => s.id !== id);
+                        this.save();
+                    }
+                },
+
+                reviveSub(id) {
+                    const sub = this.graveyard.find(s => s.id === id);
+                    this.subscriptions.push({ ...sub, nextPayment: this.offsetDate(7) });
+                    this.graveyard = this.graveyard.filter(s => s.id !== id);
+                    this.save();
+                },
+
+                openCancel(sub) {
+                    this.subToCancel = sub;
+                    this.showCancelModal = true;
+                },
+
+                copyCancel() {
+                    navigator.clipboard.writeText(document.getElementById('cancelDoc').innerText);
+                    alert('Výpověď zkopírována.');
+                },
+
+                exportData() {
+                    const data = { subs: this.subscriptions, grave: this.graveyard, meta: { currency: this.currency, date: new Date() }};
+                    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = 'nexus_backup.json'; a.click();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
